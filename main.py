@@ -82,21 +82,24 @@ def main():
 
         # Check if the user wants to see the actual source text of any citations
         while True:
+            # Make sure database isn't empty
+            if len(citations) == 0:
+                break
             question = textwrap.dedent("""
-            Please state which of the 6 sources you want the full text of.
-            Give the index starting from 0 to 5 and going from left to right for the list shown (0 for the leftmost entry, etc).
+            Please state which of the sources you want the full text of.
+            Give the index starting from 0 and going from left to right for the list shown (0 for the leftmost entry, etc).
             If you want to get another prompt, input 'Exit'.\n""")
             input_index = input(question)
-            # If user inputs 0 through 5, give the text of the selected source.
+            # If user inputs a valid index, give the text of the selected source.
             # Otherwise, reask them.
             try:
                 if input_index == "Exit":
                     break
                 input_index = int(input_index)
-                print(f"\nHere is the source text:\n{results[input_index][0].page_content}\n\nThe id for this chunk is {citations[input_index]}")
+                print(f"\nHere is the source text:\n{results[input_index][0].page_content}\n\nThe id for this chunk is:\n {citations[input_index]}")
             except:
                 # Reask user if they put in an invalid input
-                print("\nPlease state either a number 0 through 6 or 'Exit'\n")
+                print("\nPlease state either a valid index or 'Exit'\n")
 
 if __name__ == "__main__":
     main()
