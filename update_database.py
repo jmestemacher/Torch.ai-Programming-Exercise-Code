@@ -10,6 +10,7 @@ from langchain_ollama import OllamaEmbeddings
 
 
 def update_database():
+    print()
     # Have user input whether the database should be resetted before updating
     while True:
         reset_input = input("Please state whether the database should be resetted before updating it. Please state either 'Yes' or 'No'.\n")
@@ -21,7 +22,9 @@ def update_database():
             break
         # If they don't input "Yes" or "No", reprompt them.
         else:
-            print("\nPlease state either 'Yes' or 'No'\n")
+            print("\nPlease state either 'Yes' or 'No'.\n")
+
+    print()
 
     # Load the documents in the "data" folder
     doc_loader = PyPDFDirectoryLoader("data")
@@ -64,7 +67,7 @@ def update_database():
         new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
         database.add_documents(new_chunks, ids=new_chunk_ids)
     else:
-        print("There are no new documents to be added\n")
+        print("There are no new documents to be added.\n")
 
     return
 

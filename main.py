@@ -1,11 +1,9 @@
 import argparse
 from langchain.prompts import ChatPromptTemplate
 from langchain_chroma import Chroma
-from langchain_ollama import Ollama
 from langchain_ollama import OllamaEmbeddings
-
 from update_database import update_database
-
+from langchain_ollama import OllamaLLM
 
 def main():
     # Have user input whether the database should be updated
@@ -21,7 +19,9 @@ def main():
             break
         # If they don't input "Yes" or "No", reprompt them.
         else:
-            print("\nPlease state either 'Yes' or 'No'\n")
+            print("\nPlease state either 'Yes' or 'No'.\n")
+
+    print()
 
     # Have user give prompt for AI agent
     while True:
@@ -32,8 +32,10 @@ def main():
         else:
             print("Please give a valid prompt.\n")
 
+    print()
+
     system_prompt = """
-    Answer the given question based on this:
+    Answer the given question based on either your general knowledge or this:
 
     {text}
 
@@ -62,12 +64,12 @@ def main():
     prompt = prompt_template.format(text=context, prompt=user_prompt)
 
     # Send our prompt to our local LLM
-    model = Ollama(model="llama3.1")
+    model = OllamaLLM(model="llama3.1")
     response = model.invoke(prompt)
 
     # Format and show the response to the user
     citations = [doc.metadata.get("id", None) for doc, _score in results]
-    formatted_response = f"\nHere is the response:\n{response}\nHere are the Sources: {citations}"
+    formatted_response = f"\nHere is the response:\n{response}\n\nHere are the Sources: {citations}"
     print(formatted_response)
 
 
