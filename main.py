@@ -60,7 +60,7 @@ def main():
         Answer this question based on the above text: {prompt}. If you cannot
         answer the question, please state as such and explain why. Please answer
         in a structured format. If the above text had no text provided or it does not have the answer to the question state that
-        and just answer based on your general knowledge.
+        and just answer based on your general knowledge. Do try to distinguish between what is your general knowledge and what is provided by the text.
         """
 
         # Search through the database and get the top 6 results
@@ -88,18 +88,19 @@ def main():
             question = textwrap.dedent("""
             Please state which of the sources you want the full text of.
             Give the index starting from 0 and going from left to right for the list shown (0 for the leftmost entry, etc).
-            If you want to get another prompt, input 'Exit'.\n""")
+            If you want to get another prompt, input 'Next'.\n""")
             input_index = input(question)
             # If user inputs a valid index, give the text of the selected source.
             # Otherwise, reask them.
             try:
-                if input_index == "Exit":
+                if input_index == "Next":
                     break
                 input_index = int(input_index)
-                print(f"\nHere is the source text:\n{results[input_index][0].page_content}\n\nThe id for this chunk is:\n {citations[input_index]}")
+                print(f"\nHere is the source text:\n\n{results[input_index][0].page_content}\n\nThe id for this chunk is:\n {citations[input_index]}\n")
+                print(f"Here is the citation list again for ease of reading: {citations}")
             except:
                 # Reask user if they put in an invalid input
-                print("\nPlease state either a valid index or 'Exit'\n")
+                print("\nPlease input either a valid index or 'Next'.\n")
 
 if __name__ == "__main__":
     main()
