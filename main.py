@@ -37,6 +37,9 @@ def main():
 
     print()
 
+    # Set up chat history for this session
+    chat_history = []
+
     # Set up to allow multiple prompts (as many as the user wants until they close the application)
     while True:
         # Have user give prompt for AI agent
@@ -50,7 +53,10 @@ def main():
 
         print()
 
-        system_prompt = """
+        # Format chat history for system prompt below
+        chat_history_formatted = "\n\n---\n\n".join(chat_history)
+
+        system_prompt = textwrap.dedent("""
         Answer the given question based on either your general knowledge or this (or both, if applicable):
 
         {text}
@@ -61,7 +67,10 @@ def main():
         answer the question, please state as such and explain why. Please answer
         in a structured format. If the above text had no text provided or it does not have the answer to the question state that
         and just answer based on your general knowledge. Do try to distinguish between what is your general knowledge and what is provided by the text.
-        """
+        Also, the current chat history for this session is given below:
+
+        {history}
+        """)
 
         # Search through the database and get the top 6 results
         results = database.similarity_search_with_score(user_prompt, k=6)
@@ -69,7 +78,7 @@ def main():
         # Format the results
         context = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
         prompt_template = ChatPromptTemplate.from_template(system_prompt)
-        prompt = prompt_template.format(text=context, prompt=user_prompt)
+        prompt = prompt_template.format(text=context, prompt=user_prompt, history=chat_history_formatted)
 
         # Send our prompt to our local LLM
         model = OllamaLLM(model="llama3.1")
@@ -79,6 +88,9 @@ def main():
         citations = [doc.metadata.get("id", None) for doc, _score in results]
         formatted_response = f"\nHere is the response:\n{response}\n\nHere are the top {len(citations)} sources possibly related to your prompt: {citations}\n"
         print(formatted_response)
+
+        # Append prompt and response to chat history
+        chat_history.append(f"Prompt: {user_prompt}\n\nResponse: {response}") # I don't want the sources in the chat history.
 
         # Check if the user wants to see the actual source text of any citations
         while True:
@@ -94,6 +106,7 @@ def main():
             # Otherwise, reask them.
             try:
                 if input_index == "Next":
+                    print()
                     break
                 input_index = int(input_index)
                 print(f"\nHere is the source text:\n\n{results[input_index][0].page_content}\n\nThe id for this chunk is:\n {citations[input_index]}\n")
