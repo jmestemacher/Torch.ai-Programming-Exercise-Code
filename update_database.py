@@ -2,7 +2,6 @@ import argparse
 import os
 import shutil
 from langchain_community.document_loaders.pdf import PyPDFDirectoryLoader
-from langchain.schema.document import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
@@ -11,9 +10,9 @@ from langchain_ollama import OllamaEmbeddings
 
 def update_database():
     print()
-    # Have user input whether the database should be resetted before updating
+    # Have user input whether the database should be reset before updating
     while True:
-        reset_input = input("Please state whether the database should be resetted before updating it. Please state either 'Yes' or 'No'.\n")
+        reset_input = input("Please state whether the database should be reset before updating it. Please state either 'Yes' or 'No'.\n")
         # If user inputs "Yes" reset the database. If they input "No", continue on.
         if reset_input == 'Yes':
             reset_database()
@@ -33,7 +32,7 @@ def update_database():
     # Split the loaded documents into chunks for adding
     # to the database
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size = 500,
+        chunk_size = 900,
         chunk_overlap = 80,
         length_function=len,
         is_separator_regex=False
@@ -64,8 +63,30 @@ def update_database():
             new_chunks.append(chunk)
     if len(new_chunks):
         print(f"Adding new documents to database: {len(new_chunks)}")
-        new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
-        database.add_documents(new_chunks, ids=new_chunk_ids)
+        # Make sure number of new chunks does not exceed max batch size of 5461, else
+        # split the new chunks list into subsets, each max size 5461
+        if len(new_chunks) >= 5462:
+            # Form a batch of the first 5461 chunks
+            new_chunks_batch = new_chunks[:5461]
+            # Set next batch 
+            new_chunks = new_chunks[5461:]
+            at_end = False
+            while True:
+                # Add current batch to database
+                new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks_batch]
+                database.add_documents(new_chunks_batch, ids=new_chunk_ids)
+                if at_end: # Stop adding new documents if we have added all the chunks
+                    break
+                if len(new_chunks) >= 5462: # Check if we have enough for another full batch, if so
+                    # create another full batch and prepare the one after that, else let the next batch be the last one
+                    new_chunks_batch = new_chunks[:5461]
+                    new_chunks = new_chunks[5461:]
+                else:
+                    new_chunks_batch = new_chunks
+                    at_end = True
+        else:
+            new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
+            database.add_documents(new_chunks, ids=new_chunk_ids)
     else:
         print("There are no new documents to be added.\n")
 
@@ -89,9 +110,9 @@ def get_chunk_ids(chunks):
     # Go through each chunk
     for chunk in chunks:
         # Get metadata for chunk
-        source = chunk.metadata.get("source")
+        source = chunk.metadata.get("source").replace("data\\", "")
         page = chunk.metadata.get("page")
-        current_page_id = f"{source}:{page}"
+        current_page_id = f"{source} : Page {page}"
 
         # Increment chunk index if page ID is same as previous one
         if current_page_id == previous_page_id:
@@ -100,7 +121,7 @@ def get_chunk_ids(chunks):
             current_chunk_index = 0
         
         # Get the chunk id by appending Page ID and chunk index
-        chunk_id = f" {current_page_id}:{current_chunk_index}"
+        chunk_id = f"{current_page_id} : Chunk Index {current_chunk_index}"
         previous_page_id = current_page_id
 
         # Add id to chunk meta-data
