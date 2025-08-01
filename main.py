@@ -67,7 +67,8 @@ def main():
         answer the question, please state as such and explain why. Please answer
         in a structured format. If the above text had no text provided or it does not have the answer to the question state that
         and just answer based on your general knowledge. Do try to distinguish between what is your general knowledge and what is provided by the text.
-        Also, the current chat history for this session is given below:
+        If the question above is ambigious, state as such and explain your reasoning process when you answer it.
+        Also, the current chat history for this session is given below (it may not be needed, but it is given just in case):
 
         {history}
         """)
