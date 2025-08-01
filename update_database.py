@@ -5,8 +5,9 @@ from langchain_community.document_loaders.pdf import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
-
-
+from langchain_community.document_loaders import DirectoryLoader
+import warnings
+import sys
 
 def update_database():
     print()
@@ -25,7 +26,7 @@ def update_database():
 
     print()
 
-    # Load the documents in the "data" folder
+    # Load the pdf documents in the "data" folder
     doc_loader = PyPDFDirectoryLoader("data")
     documents = doc_loader.load()
 
@@ -62,7 +63,7 @@ def update_database():
         if chunk.metadata['id'] not in existing_ids:
             new_chunks.append(chunk)
     if len(new_chunks):
-        print(f"Adding new documents to database: {len(new_chunks)}")
+        print(f"Adding new pdf chunks to database: {len(new_chunks)}")
         # Make sure number of new chunks does not exceed max batch size of 5461, else
         # split the new chunks list into subsets, each max size 5461
         if len(new_chunks) >= 5462:
@@ -88,7 +89,85 @@ def update_database():
             new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
             database.add_documents(new_chunks, ids=new_chunk_ids)
     else:
-        print("There are no new documents to be added.\n")
+        print("There are no new pdf chunks to be added.\n")
+
+        print()
+
+    # Add txt documents
+    # We want to supress an error for loading txt documents below 
+    # (it concerns libmagic which doesn't matter to us since we are using Windows)
+    # so supress all console output temporarily
+    sys.stdout = open(os.devnull, "w")
+    sys.stderr = open(os.devnull, "w")
+
+    doc_loader = DirectoryLoader("data", glob="*.txt")
+    documents = doc_loader.load()
+
+    # Reenable console output
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__
+
+    # Split the loaded documents into chunks for adding
+    # to the database
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size = 900,
+        chunk_overlap = 80,
+        length_function=len,
+        is_separator_regex=False
+    )
+    chunks = text_splitter.split_documents(documents)
+
+    # Define the embedding function
+    def get_embedding_function():
+        embeddings = OllamaEmbeddings(model="nomic-embed-text")
+        return embeddings
+
+    # Load the database
+    database = Chroma(
+        persist_directory="chroma", embedding_function=get_embedding_function()
+    )
+
+    # Get page ids
+    chunks_with_ids = get_chunk_ids(chunks)
+
+    # Get existing ids
+    existing_items = database.get(include=[])
+    existing_ids = set(existing_items['ids'])
+
+    # Add new chunks to database
+    new_chunks = []
+    for chunk in chunks_with_ids:
+        if chunk.metadata['id'] not in existing_ids:
+            new_chunks.append(chunk)
+    if len(new_chunks):
+        print(f"Adding new txt documents to database: {len(new_chunks)}")
+        # Make sure number of new chunks does not exceed max batch size of 5461, else
+        # split the new chunks list into subsets, each max size 5461
+        if len(new_chunks) >= 5462:
+            # Form a batch of the first 5461 chunks
+            new_chunks_batch = new_chunks[:5461]
+            # Set next batch 
+            new_chunks = new_chunks[5461:]
+            at_end = False
+            while True:
+                # Add current batch to database
+                new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks_batch]
+                database.add_documents(new_chunks_batch, ids=new_chunk_ids)
+                if at_end: # Stop adding new documents if we have added all the chunks
+                    break
+                if len(new_chunks) >= 5462: # Check if we have enough for another full batch, if so
+                    # create another full batch and prepare the one after that, else let the next batch be the last one
+                    new_chunks_batch = new_chunks[:5461]
+                    new_chunks = new_chunks[5461:]
+                else:
+                    new_chunks_batch = new_chunks
+                    at_end = True
+        else:
+            new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
+            database.add_documents(new_chunks, ids=new_chunk_ids)
+    
+    else:
+        print("There are no new txt chunks to be added")
 
     return
 
